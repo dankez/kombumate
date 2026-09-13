@@ -101,11 +101,28 @@ export interface Batch {
   createdAt: string;
   updatedAt: string;
 }
+export type RecipeCategory =
+  | 'CLASSIC'
+  | 'SCOBY_HOTEL'
+  | 'SECOND_FERMENTATION'
+  | 'SODA_LEMONADE'
+  | 'EXPERIMENTAL';
+
+export interface SecondFermentRatio {
+  bottleVolumeMl: number; // e.g. 500
+  fruitGrams?: number;
+  juiceMl?: number;
+  sugarGrams?: number;
+  herbsNotes?: string;
+  fermentDaysMin: number;
+  fermentDaysMax: number;
+  fizzLevel: 'Jemné perlenie' | 'Stredné perlenie' | 'Silné šumivé (šampanské)';
+}
 
 export interface Recipe {
   id: string;
   name: string;
-  category: 'CLASSIC' | 'FLAVORED' | 'EXPERIMENTAL' | 'SECOND_FERMENTATION';
+  category: RecipeCategory;
   description: string;
   teaType: TeaType;
   defaultVolumeLiters: number;
@@ -118,6 +135,10 @@ export interface Recipe {
   instructions: string[];
   notes?: string;
   recommendedSecondFermentAdditions?: string[];
+  secondFermentRatio?: SecondFermentRatio;
+  isFavorite?: boolean;
+  isDefault?: boolean;
+  isCustom?: boolean;
 }
 
 export interface ScobyRecord {

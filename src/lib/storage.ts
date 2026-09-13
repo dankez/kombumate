@@ -198,3 +198,81 @@ export function addScoby(name: string, notes?: string): ScobyRecord {
   saveStoredScobies([newScoby, ...scobies]);
   return newScoby;
 }
+
+// RECIPES MANAGEMENT
+const RECIPES_KEY = 'kombumate_recipes_v2';
+import { INITIAL_RECIPES } from './sampleData';
+import { Recipe } from '@/types';
+
+export function getStoredRecipes(): Recipe[] {
+  if (typeof window === 'undefined') {
+    return INITIAL_RECIPES;
+  }
+  try {
+    const raw = localStorage.getItem(RECIPES_KEY);
+    if (!raw) {
+      localStorage.setItem(RECIPES_KEY, JSON.stringify(INITIAL_RECIPES));
+      return INITIAL_RECIPES;
+    }
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) && parsed.length > 0 ? parsed : INITIAL_RECIPES;
+  } catch (e) {
+    console.error('Error reading recipes from localStorage', e);
+    return INITIAL_RECIPES;
+  }
+}
+
+export function saveStoredRecipes(recipes: Recipe[]): void {
+  if (typeof window === 'undefined') return;
+  try {
+    localStorage.setItem(RECIPES_KEY, JSON.stringify(recipes));
+    window.dispatchEvent(new CustomEvent('kombumate_recipes_updated', { detail: recipes }));
+  } catch (e) {
+    console.error('Error saving recipes to localStorage', e);
+  }
+}
+
+export function toggleFavoriteRecipe(recipeId: string): Recipe[] {
+  const recipes = getStoredRecipes();
+  const updated = recipes.map((r) => {
+    if (r.id === recipeId) {
+      return { ...r, isFavorite: !r.isFavorite };
+    }
+    return r;
+  });
+  saveStoredRecipes(updated);
+  return updated;
+}
+
+export function setDefaultRecipe(recipeId: string): Recipe[] {
+  const recipes = getStoredRecipes();
+  const updated = recipes.map((r) => ({
+    ...r,
+    isDefault: r.id === recipeId,
+  }));
+  saveStoredRecipes(updated);
+  return updated;
+}
+
+export function getDefaultRecipe(): Recipe | undefined {
+  const recipes = getStoredRecipes();
+  return recipes.find((r) => r.isDefault) || recipes[0];
+}
+
+export function addCustomRecipe(recipeData: Omit<Recipe, 'id'>): Recipe {
+  const recipes = getStoredRecipes();
+  const newRecipe: Recipe = {
+    ...recipeData,
+    id: `rec-custom-${Date.now()}`,
+    isCustom: true,
+  };
+  const updated = [newRecipe, ...recipes];
+  saveStoredRecipes(updated);
+  return newRecipe;
+}
+
+export function deleteStoredRecipe(recipeId: string): void {
+  const recipes = getStoredRecipes();
+  const filtered = recipes.filter((r) => r.id !== recipeId);
+  saveStoredRecipes(filtered);
+}
