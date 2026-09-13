@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import {
   FlaskConical,
@@ -9,16 +9,20 @@ import {
   Clock,
   Sparkles,
   AlertTriangle,
-  CheckCircle2,
   Calendar,
   Thermometer,
   BookOpen,
   ArrowRight,
   ShieldAlert,
-  BellRing
+  BellRing,
+  TrendingDown,
+  Droplets,
+  CheckCircle2
 } from 'lucide-react';
 import { Batch, Recipe, ScobyRecord } from '@/types';
 import { STATE_BADGE_COLORS, STATE_LABELS, calculateDaysFermenting, evaluateBatchState } from '@/lib/fermentationEngine';
+import { getStoredBatches, getStoredScobies } from '@/lib/storage';
+import FermentationCharts from '@/components/FermentationCharts';
 
 interface DashboardProps {
   initialBatches: Batch[];
@@ -28,6 +32,27 @@ interface DashboardProps {
 
 export default function Dashboard({ initialBatches, initialRecipes, initialScobies }: DashboardProps) {
   const [batches, setBatches] = useState<Batch[]>(initialBatches);
+  const [scobies, setScobies] = useState<ScobyRecord[]>(initialScobies);
+
+  useEffect(() => {
+    setBatches(getStoredBatches());
+    setScobies(getStoredScobies());
+
+    const handleBatchesUpdate = () => {
+      setBatches(getStoredBatches());
+    };
+    const handleScobiesUpdate = () => {
+      setScobies(getStoredScobies());
+    };
+
+    window.addEventListener('kombumate_batches_updated', handleBatchesUpdate);
+    window.addEventListener('kombumate_scobies_updated', handleScobiesUpdate);
+
+    return () => {
+      window.removeEventListener('kombumate_batches_updated', handleBatchesUpdate);
+      window.removeEventListener('kombumate_scobies_updated', handleScobiesUpdate);
+    };
+  }, []);
 
   const activeBatches = batches.filter(
     (b) => !['COMPLETED', 'DISCARDED'].includes(b.state)
@@ -39,6 +64,14 @@ export default function Dashboard({ initialBatches, initialRecipes, initialScobi
     return ['READY_TO_TASTE', 'OVERDUE_FOR_CHECK', 'READY_TO_CHILL', 'READY_TO_BOTTLE'].includes(evaluated);
   });
 
+  // Calculate average temperature from latest measurements
+  const tempsWithData = activeBatches
+    .map((b) => b.measurements[0]?.temperature)
+    .filter((t): t is number => typeof t === 'number');
+  const avgTemp = tempsWithData.length > 0
+    ? (tempsWithData.reduce((a, b) => a + b, 0) / tempsWithData.length).toFixed(1)
+    : '23.8';
+
   return (
     <div className="space-y-8">
       {/* Top Banner / Welcome */}
@@ -48,27 +81,27 @@ export default function Dashboard({ initialBatches, initialRecipes, initialScobi
         </div>
         <div className="relative z-10 max-w-3xl">
           <div className="flex items-center gap-2 text-amber-300 text-xs font-mono uppercase tracking-wider mb-2 font-semibold">
-            <Sparkles className="w-4 h-4" /> Domáca Remeselná Varňa
+            <Sparkles className="w-4 h-4" /> Remeselné Kvasenie Kombuchy
           </div>
           <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight font-serif mb-2">
             Kombucha Hub – Vaša Fermentácia pod Kontrolou
           </h1>
           <p className="text-emerald-100 text-sm md:text-base leading-relaxed">
-            Sledujte priebeh prvej a druhej fermentácie, nezabudnite na degustácie, prepočítajte ingrediencie pre 3-4L nádoby a udržiavajte zdravý SCOBY hotel.
+            Sledujte presný pokles cukru, dynamiku pH, teplotu a ideálny okamih ochutnávky pre 3 až 4-litrové nádoby. Všetky dáta a receptúry máte plne pod kontrolou.
           </p>
 
           <div className="mt-6 flex flex-wrap items-center gap-3">
             <Link
-              href="/batches/new"
-              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-emerald-950 font-bold text-sm shadow-md transition transform active:scale-95"
+              href="/recipes"
+              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-emerald-950 font-black text-sm shadow-md transition transform active:scale-95"
             >
-              <Plus className="w-4 h-4" /> Založiť Novú Várku
+              <Plus className="w-4 h-4" /> Založiť Várku z Kalkulačky
             </Link>
             <Link
-              href="/recipes"
-              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-800/80 hover:bg-emerald-700 text-emerald-100 font-semibold text-sm border border-emerald-600 transition"
+              href="/analytics"
+              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-800/90 hover:bg-emerald-700 text-emerald-100 font-semibold text-sm border border-emerald-600 transition"
             >
-              <BookOpen className="w-4 h-4" /> Kalkulačka & Recepty
+              <TrendingDown className="w-4 h-4 text-amber-300" /> Fermentačné Grafy
             </Link>
           </div>
         </div>
@@ -102,7 +135,7 @@ export default function Dashboard({ initialBatches, initialRecipes, initialScobi
           </div>
           <div>
             <div className="text-xs text-gray-500 font-medium">SCOBY Hotel</div>
-            <div className="text-xl font-extrabold text-teal-950 font-mono">{initialScobies.length} kultúry</div>
+            <div className="text-xl font-extrabold text-teal-950 font-mono">{scobies.length} kultúry</div>
           </div>
         </div>
 
@@ -112,7 +145,7 @@ export default function Dashboard({ initialBatches, initialRecipes, initialScobi
           </div>
           <div>
             <div className="text-xs text-gray-500 font-medium">Priemerná Teplota</div>
-            <div className="text-xl font-extrabold text-sky-950 font-mono">23.8 °C</div>
+            <div className="text-xl font-extrabold text-sky-950 font-mono">{avgTemp} °C</div>
           </div>
         </div>
       </div>
@@ -154,13 +187,21 @@ export default function Dashboard({ initialBatches, initialRecipes, initialScobi
         </div>
       )}
 
+      {/* MAIN FERMENTATION GRAPHS EMBEDDED IN DASHBOARD */}
+      <FermentationCharts
+        batch={activeBatches[0]}
+        allBatches={activeBatches}
+        title="Aktuálna Krivka Kvasenia & Spotreba Cukru"
+        subtitle="Sledujte pokles sladkosti, vývoj acidity (pH) a rovnováhu chuti v čase."
+      />
+
       {/* Main Grid Section */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Left Column (2 Cols): Active Batches */}
         <div className="lg:col-span-2 space-y-6">
           <div className="flex items-center justify-between">
             <h2 className="text-xl font-extrabold text-emerald-950 font-serif flex items-center gap-2">
-              <Flame className="w-5 h-5 text-amber-600" /> Prebiehajúce Várky ({activeBatches.length})
+              <Flame className="w-5 h-5 text-amber-600" /> Moje Várky ({activeBatches.length})
             </h2>
             <Link href="/batches" className="text-xs font-bold text-emerald-800 hover:text-emerald-900 underline">
               Zobraziť všetky
@@ -170,15 +211,15 @@ export default function Dashboard({ initialBatches, initialRecipes, initialScobi
           {activeBatches.length === 0 ? (
             <div className="bg-white p-8 rounded-2xl border border-dashed border-gray-300 text-center space-y-3">
               <FlaskConical className="w-12 h-12 text-gray-400 mx-auto" />
-              <h3 className="font-bold text-gray-700">Nemáte žiadne aktívne várky</h3>
+              <h3 className="font-bold text-gray-700">Nemáte žiadne aktívne kvasenie</h3>
               <p className="text-xs text-gray-500 max-w-sm mx-auto">
-                Pripravte si čerstvý čaj, pridajte cukor a začnite svoju novú kombucha várku s naším asistentom.
+                Zvoľte si objem nádoby a čaj v kalkulačke a jedným kliknutím založte novú várku.
               </p>
               <Link
-                href="/batches/new"
-                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-800 text-white text-xs font-bold hover:bg-emerald-700"
+                href="/recipes"
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-amber-500 text-emerald-950 text-xs font-bold hover:bg-amber-400 transition"
               >
-                <Plus className="w-4 h-4" /> Založiť novú várku
+                <Plus className="w-4 h-4" /> Spustiť kvasenie z kalkulačky
               </Link>
             </div>
           ) : (
@@ -187,6 +228,7 @@ export default function Dashboard({ initialBatches, initialRecipes, initialScobi
                 const evaluatedState = evaluateBatchState(batch);
                 const days = calculateDaysFermenting(batch.startDate);
                 const colors = STATE_BADGE_COLORS[evaluatedState];
+                const latestM = batch.measurements[0];
 
                 return (
                   <div
@@ -218,19 +260,19 @@ export default function Dashboard({ initialBatches, initialRecipes, initialScobi
                         <span className="font-bold text-emerald-950 font-mono">{batch.volumeLiters} L</span>
                       </div>
                       <div>
-                        <span className="text-gray-400 block">Čaj</span>
+                        <span className="text-gray-400 block">Druh Čaju</span>
                         <span className="font-bold text-emerald-950">{batch.teaType}</span>
                       </div>
                       <div>
-                        <span className="text-gray-400 block">Posledné pH</span>
-                        <span className="font-bold text-emerald-950 font-mono">
-                          {batch.measurements[0]?.ph ? batch.measurements[0].ph.toFixed(1) : '–'}
+                        <span className="text-gray-400 block">Cukor / Brix</span>
+                        <span className="font-bold text-amber-900 font-mono">
+                          {latestM?.sugarBrix ? `${latestM.sugarBrix} °B` : '~3.5 °B'}
                         </span>
                       </div>
                       <div>
-                        <span className="text-gray-400 block">Teplota</span>
+                        <span className="text-gray-400 block">pH / Acidita</span>
                         <span className="font-bold text-emerald-950 font-mono">
-                          {batch.measurements[0]?.temperature ? `${batch.measurements[0].temperature} °C` : '23 °C'}
+                          {latestM?.ph ? `pH ${latestM.ph.toFixed(1)}` : 'pH ~3.2'}
                         </span>
                       </div>
                     </div>
@@ -246,7 +288,7 @@ export default function Dashboard({ initialBatches, initialRecipes, initialScobi
                         href={`/batches/${batch.id}`}
                         className="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-800 hover:text-emerald-950 bg-emerald-50 hover:bg-emerald-100 px-3 py-1.5 rounded-lg transition"
                       >
-                        Otvoriť detail a záznamy <ArrowRight className="w-3.5 h-3.5" />
+                        Otvoriť detail, graf a merania <ArrowRight className="w-3.5 h-3.5" />
                       </Link>
                     </div>
                   </div>
@@ -262,7 +304,7 @@ export default function Dashboard({ initialBatches, initialRecipes, initialScobi
           <div className="bg-white rounded-2xl border border-emerald-900/10 shadow-sm p-5 space-y-4">
             <div className="flex items-center justify-between border-b border-gray-100 pb-3">
               <h3 className="font-serif font-extrabold text-emerald-950 text-base flex items-center gap-2">
-                <ShieldAlert className="w-5 h-5 text-teal-700" /> SCOBY Hotel & Zásoby
+                <ShieldAlert className="w-5 h-5 text-teal-700" /> SCOBY Hotel & Kultúry
               </h3>
               <Link href="/scoby" className="text-xs text-emerald-700 font-bold hover:underline">
                 Spravovať
@@ -270,18 +312,18 @@ export default function Dashboard({ initialBatches, initialRecipes, initialScobi
             </div>
 
             <p className="text-xs text-gray-600 leading-relaxed">
-              Váš domáci hotel pre záložné materské kultúry. Pravidelné prikŕmenie chráni kultúry pred vyschnutím a udržiava vysokú aciditu.
+              Záložné materské kultúry v kyslom náleve. Pravidelné kŕmenie čajom udržiava vysokú vitalitu a chráni pred vyschnutím.
             </p>
 
             <div className="space-y-2">
-              {initialScobies.map((scoby) => (
+              {scobies.map((scoby) => (
                 <div key={scoby.id} className="bg-emerald-50/50 p-3 rounded-xl border border-emerald-100 flex items-center justify-between">
                   <div>
                     <h4 className="font-bold text-emerald-950 text-xs">{scoby.name}</h4>
                     <span className="text-[10px] text-gray-500 font-mono">Generácia {scoby.generation} • {scoby.healthStatus}</span>
                   </div>
                   <span className="text-xs bg-emerald-200 text-emerald-900 font-bold px-2 py-0.5 rounded-full">
-                    Zdravá
+                    Aktívna
                   </span>
                 </div>
               ))}
@@ -298,10 +340,10 @@ export default function Dashboard({ initialBatches, initialRecipes, initialScobi
           {/* Quick Recipe Recommendation */}
           <div className="bg-gradient-to-br from-amber-50 to-orange-50/60 rounded-2xl border border-amber-200 p-5 space-y-3">
             <div className="flex items-center gap-2 text-amber-900 font-serif font-bold text-base">
-              <Sparkles className="w-5 h-5 text-amber-600" /> Odporúčaná 2F Príchuť
+              <Sparkles className="w-5 h-5 text-amber-600" /> Druhá Fermentácia (2F)
             </div>
             <p className="text-xs text-amber-950/80 leading-relaxed">
-              <strong>Zázvor & Čerstvé Maliny:</strong> Pre 3.5L várku stočenú do 0.5L fliaš pridajte do každej fľaše 25g malín a 10g nastrúhaného zázvoru. Už za 3 dni získate bohatú penu a perlenie.
+              <strong>Zázvor & Citrón:</strong> Pre 0.5L fľašu pridajte 10g nastrúhaného čerstvého zázvoru a 10ml citrónovej šťavy. Po 2–3 dňoch pri izbovej teplote získate jemne pikantnú a prirodzene perlivú kombuchu.
             </p>
             <Link
               href="/recipes"

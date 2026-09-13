@@ -1,18 +1,62 @@
 'use client';
 
-import { useState } from 'react';
-import { Calculator, Sparkles, AlertCircle, Info, BookOpen } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import Link from 'next/link';
+import {
+  Calculator,
+  Sparkles,
+  AlertCircle,
+  Info,
+  BookOpen,
+  PlusCircle,
+  CheckCircle2,
+  ArrowRight,
+  FlaskConical,
+  Check
+} from 'lucide-react';
+import confetti from 'canvas-confetti';
 import { calculateIngredients, calculateSecondFermentationIngredients, TEA_TYPE_PROFILES } from '@/lib/calculator';
-import { Recipe, TeaType } from '@/types';
+import { Recipe, TeaType, ScobyRecord } from '@/types';
+import { createBatchFromParams, getStoredScobies } from '@/lib/storage';
 
 interface RecipeCalculatorProps {
   recipes: Recipe[];
 }
 
 export default function RecipeCalculator({ recipes }: RecipeCalculatorProps) {
+  const router = useRouter();
+
   const [volume, setVolume] = useState<number>(3.5);
   const [selectedTea, setSelectedTea] = useState<TeaType>('BLACK');
   const [customVolumeInput, setCustomVolumeInput] = useState<string>('3.5');
+
+  // New batch creation from calculator state
+  const [batchName, setBatchName] = useState<string>('Domáca Kombucha – Čierny čaj (3.5L)');
+  const [selectedScobyId, setSelectedScobyId] = useState<string>('');
+  const [estimatedDays, setEstimatedDays] = useState<number>(8);
+  const [batchNotes, setBatchNotes] = useState<string>('');
+  const [scobies, setScobies] = useState<ScobyRecord[]>([]);
+  const [isCreated, setIsCreated] = useState<boolean>(false);
+  const [createdBatchId, setCreatedBatchId] = useState<string>('');
+
+  useEffect(() => {
+    const list = getStoredScobies();
+    setScobies(list);
+    if (list.length > 0) {
+      setSelectedScobyId(list[0].id);
+    }
+  }, []);
+
+  // Update default batch name when tea or volume changes
+  useEffect(() => {
+    const teaName = TEA_TYPE_PROFILES[selectedTea].name;
+    setBatchName(`Moja Kombucha – ${teaName} (${volume}L)`);
+    // adjust default ferment days based on tea
+    if (selectedTea === 'GREEN') setEstimatedDays(7);
+    else if (selectedTea === 'WHITE') setEstimatedDays(6);
+    else setEstimatedDays(8);
+  }, [selectedTea, volume]);
 
   const presetVolumes = [1.0, 2.0, 3.0, 3.5, 4.0];
 
@@ -33,6 +77,42 @@ export default function RecipeCalculator({ recipes }: RecipeCalculatorProps) {
   const teaProfile = TEA_TYPE_PROFILES[selectedTea];
   const f2BottleGuide = calculateSecondFermentationIngredients(500); // 500ml standard bottle
 
+  const handleCreateBatch = (e: React.FormEvent) => {
+    e.preventDefault();
+
+    const selectedScoby = scobies.find((s) => s.id === selectedScobyId) || scobies[0];
+
+    const newBatch = createBatchFromParams({
+      name: batchName,
+      teaType: selectedTea,
+      volumeLiters: volume,
+      teaGram: ingredients.teaGram,
+      sugarGram: ingredients.sugarGram,
+      starterLiquidMl: ingredients.starterMl,
+      waterLiters: ingredients.waterLiters,
+      scobyId: selectedScoby?.id,
+      scobyName: selectedScoby?.name,
+      estimatedDays,
+      notes: batchNotes || `Založené cez kalkulačku pre ${volume}L nádobu.`,
+    });
+
+    try {
+      confetti({
+        particleCount: 80,
+        spread: 70,
+        origin: { y: 0.6 },
+      });
+    } catch {}
+
+    setCreatedBatchId(newBatch.id);
+    setIsCreated(true);
+
+    // Redirect after brief delay
+    setTimeout(() => {
+      router.push(`/batches/${newBatch.id}`);
+    }, 1200);
+  };
+
   return (
     <div className="space-y-8">
       {/* Header Banner */}
@@ -41,27 +121,28 @@ export default function RecipeCalculator({ recipes }: RecipeCalculatorProps) {
           <BookOpen className="w-7 h-7 text-amber-400" /> Receptár & Interaktívna Kalkulačka Ingrediencií
         </h1>
         <p className="text-emerald-100 text-sm mt-2 max-w-2xl leading-relaxed">
-          Presné vyváženie čaju, trstinového cukru, vody a štartovacej tekutiny. Optimalizované pre domáce domáce nádoby s objemom 3 – 4 litre.
+          Presné vyváženie čaju, trstinového cukru, vody a štartovacej tekutiny. Nastavte si objem nádoby a jedným kliknutím založte svoje vlastné kvasenie.
         </p>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Interactive Calculator (2 Cols) */}
+        {/* Interactive Calculator & Batch Creator (2 Cols) */}
         <div className="lg:col-span-2 space-y-6">
           <div className="bg-white rounded-2xl border border-emerald-900/10 shadow-sm p-6 space-y-6">
             <h2 className="text-xl font-extrabold text-emerald-950 font-serif flex items-center gap-2 border-b border-gray-100 pb-3">
-              <Calculator className="w-5 h-5 text-amber-600" /> Kalkulačka Prvej Fermentácie (1F)
+              <Calculator className="w-5 h-5 text-amber-600" /> 1. Nastavenie Surovín (1F)
             </h2>
 
             {/* Step 1: Select Volume */}
             <div className="space-y-3">
               <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider">
-                1. Zvoľte požadovaný objem nádoby (Litre):
+                Objem nádoby (Litre):
               </label>
               <div className="flex flex-wrap items-center gap-2">
                 {presetVolumes.map((v) => (
                   <button
                     key={v}
+                    type="button"
                     onClick={() => handlePresetClick(v)}
                     className={`px-4 py-2 rounded-xl text-xs font-bold transition font-mono ${
                       volume === v
@@ -91,7 +172,7 @@ export default function RecipeCalculator({ recipes }: RecipeCalculatorProps) {
             {/* Step 2: Select Tea Type */}
             <div className="space-y-3">
               <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider">
-                2. Vyberte druh čajového základu:
+                Druh čajového základu:
               </label>
               <select
                 value={selectedTea}
@@ -124,7 +205,7 @@ export default function RecipeCalculator({ recipes }: RecipeCalculatorProps) {
               </h3>
 
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                <div className="bg-emerald-900 text-white p-3.5 rounded-xl text-center space-y-1">
+                <div className="bg-emerald-900 text-white p-3.5 rounded-xl text-center space-y-1 shadow-sm">
                   <span className="text-[10px] text-emerald-300 font-bold uppercase block">Čajové lístky</span>
                   <span className="text-xl font-extrabold font-mono text-amber-300 block">{ingredients.teaGram} g</span>
                   <span className="text-[10px] text-emerald-200 block">
@@ -132,7 +213,7 @@ export default function RecipeCalculator({ recipes }: RecipeCalculatorProps) {
                   </span>
                 </div>
 
-                <div className="bg-emerald-900 text-white p-3.5 rounded-xl text-center space-y-1">
+                <div className="bg-emerald-900 text-white p-3.5 rounded-xl text-center space-y-1 shadow-sm">
                   <span className="text-[10px] text-emerald-300 font-bold uppercase block">Cukor trstinový</span>
                   <span className="text-xl font-extrabold font-mono text-amber-300 block">{ingredients.sugarGram} g</span>
                   <span className="text-[10px] text-emerald-200 block">
@@ -140,7 +221,7 @@ export default function RecipeCalculator({ recipes }: RecipeCalculatorProps) {
                   </span>
                 </div>
 
-                <div className="bg-emerald-900 text-white p-3.5 rounded-xl text-center space-y-1">
+                <div className="bg-emerald-900 text-white p-3.5 rounded-xl text-center space-y-1 shadow-sm">
                   <span className="text-[10px] text-emerald-300 font-bold uppercase block">Štartér (Kombucha)</span>
                   <span className="text-xl font-extrabold font-mono text-amber-300 block">{ingredients.starterMl} ml</span>
                   <span className="text-[10px] text-emerald-200 block">
@@ -148,7 +229,7 @@ export default function RecipeCalculator({ recipes }: RecipeCalculatorProps) {
                   </span>
                 </div>
 
-                <div className="bg-emerald-900 text-white p-3.5 rounded-xl text-center space-y-1">
+                <div className="bg-emerald-900 text-white p-3.5 rounded-xl text-center space-y-1 shadow-sm">
                   <span className="text-[10px] text-emerald-300 font-bold uppercase block">Pitná voda</span>
                   <span className="text-xl font-extrabold font-mono text-amber-300 block">{ingredients.waterLiters} L</span>
                   <span className="text-[10px] text-emerald-200 block">vriaca & studená</span>
@@ -162,6 +243,110 @@ export default function RecipeCalculator({ recipes }: RecipeCalculatorProps) {
                   <span>{warn}</span>
                 </div>
               ))}
+            </div>
+
+            {/* DIRECT BATCH CREATION SECTION */}
+            <div className="border-t-2 border-amber-200/80 pt-6 space-y-4 bg-gradient-to-br from-amber-50/70 to-emerald-50/50 p-5 rounded-2xl border">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-base font-extrabold text-emerald-950 font-serif flex items-center gap-2">
+                    <FlaskConical className="w-5 h-5 text-amber-600" /> Pridať ako Moje Kvasenie
+                  </h3>
+                  <p className="text-xs text-gray-600 mt-0.5">
+                    Uložte si túto receptúru priamo medzi vaše aktívne várky a začnite sledovať kvasenie a grafy.
+                  </p>
+                </div>
+              </div>
+
+              {isCreated ? (
+                <div className="bg-emerald-600 text-white p-4 rounded-xl flex items-center justify-between animate-fade-in shadow-md">
+                  <div className="flex items-center gap-3">
+                    <CheckCircle2 className="w-6 h-6 text-amber-300" />
+                    <div>
+                      <h4 className="font-bold text-sm">Várka bola úspešne vytvorená!</h4>
+                      <p className="text-xs text-emerald-100">Presmerovávam na detail kvasenia a grafy...</p>
+                    </div>
+                  </div>
+                  <Link
+                    href={`/batches/${createdBatchId}`}
+                    className="px-3 py-1.5 bg-white text-emerald-950 font-bold text-xs rounded-lg shadow hover:bg-emerald-50 transition"
+                  >
+                    Otvoriť ihneď &rarr;
+                  </Link>
+                </div>
+              ) : (
+                <form onSubmit={handleCreateBatch} className="space-y-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs font-bold text-emerald-950 mb-1">
+                        Názov novej várky:
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        value={batchName}
+                        onChange={(e) => setBatchName(e.target.value)}
+                        className="w-full px-3 py-2 rounded-xl border border-gray-300 text-xs font-bold text-emerald-950 outline-none focus:ring-2 focus:ring-amber-500 bg-white"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-bold text-emerald-950 mb-1">
+                        Materská kultúra (SCOBY):
+                      </label>
+                      <select
+                        value={selectedScobyId}
+                        onChange={(e) => setSelectedScobyId(e.target.value)}
+                        className="w-full px-3 py-2 rounded-xl border border-gray-300 text-xs font-bold text-emerald-950 outline-none focus:ring-2 focus:ring-amber-500 bg-white"
+                      >
+                        {scobies.map((s) => (
+                          <option key={s.id} value={s.id}>
+                            {s.name} (Gen. {s.generation})
+                          </option>
+                        ))}
+                        <option value="new-scoby">Nový čerstvý SCOBY</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs font-bold text-emerald-950 mb-1">
+                        Plánovaná dĺžka 1F (Dni do ochutnania):
+                      </label>
+                      <input
+                        type="number"
+                        min="3"
+                        max="21"
+                        value={estimatedDays}
+                        onChange={(e) => setEstimatedDays(parseInt(e.target.value) || 8)}
+                        className="w-full px-3 py-2 rounded-xl border border-gray-300 text-xs font-mono font-bold text-emerald-950 outline-none focus:ring-2 focus:ring-amber-500 bg-white"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-bold text-emerald-950 mb-1">
+                        Poznámka k uloženiu nádoby (voliteľné):
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="Napr. Špajza, stála teplota 23°C"
+                        value={batchNotes}
+                        onChange={(e) => setBatchNotes(e.target.value)}
+                        className="w-full px-3 py-2 rounded-xl border border-gray-300 text-xs text-emerald-950 outline-none focus:ring-2 focus:ring-amber-500 bg-white"
+                      />
+                    </div>
+                  </div>
+
+                  <button
+                    type="submit"
+                    className="w-full py-3.5 px-6 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-emerald-950 font-black text-sm shadow-md transition transform active:scale-[0.99] flex items-center justify-center gap-2"
+                  >
+                    <PlusCircle className="w-5 h-5 text-emerald-950" />
+                    <span>Pridať ako Moje Kvasenie & Spustiť Sledovanie</span>
+                  </button>
+                </form>
+              )}
             </div>
           </div>
         </div>
@@ -192,9 +377,9 @@ export default function RecipeCalculator({ recipes }: RecipeCalculatorProps) {
             </div>
 
             <div className="text-[11px] bg-amber-700/20 p-3 rounded-xl text-emerald-950 font-medium space-y-1 border border-amber-700/30">
-              <span className="font-bold block">⚠️ Bezpečnostná poznámka ku krytu:</span>
+              <span className="font-bold block">⚠️ Bezpečnostná poznámka:</span>
               <p>
-                Fľaše s ovocím neplňte po okraj (nechajte 2-3 cm voľného priestoru). Kontrolujte tlak raz denne naklonením alebo jemným odvetraním, aby nedošlo k prasknutiu skla!
+                Fľaše s ovocím neplňte po okraj (nechajte 2-3 cm voľného priestoru). Kontrolujte tlak raz denne odvetraním, aby nedošlo k prasknutiu skla!
               </p>
             </div>
           </div>

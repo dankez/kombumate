@@ -4,24 +4,46 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { ArrowLeft, FlaskConical, Calculator, Sparkles, Check } from 'lucide-react';
+import confetti from 'canvas-confetti';
 import { calculateIngredients, TEA_TYPE_PROFILES } from '@/lib/calculator';
 import { TeaType } from '@/types';
+import { createBatchFromParams } from '@/lib/storage';
 
 export default function NewBatchPage() {
   const router = useRouter();
 
-  const [name, setName] = useState('Jesenná Čierna Kombucha');
+  const [name, setName] = useState('Nová Domáca Kombucha (3.5L)');
   const [volume, setVolume] = useState<number>(3.5);
   const [teaType, setTeaType] = useState<TeaType>('BLACK');
   const [targetDays, setTargetDays] = useState<number>(8);
-  const [notes, setNotes] = useState('Nádoba v špajzi, izbová teplota 23°C.');
+  const [notes, setNotes] = useState('Nádoba v špajzi, izbová teplota 23–24°C.');
 
   const ingredients = calculateIngredients(volume);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    alert('Nová kombucha várka bola úspešne založená a uložená!');
-    router.push('/');
+
+    const created = createBatchFromParams({
+      name,
+      teaType,
+      volumeLiters: volume,
+      teaGram: ingredients.teaGram,
+      sugarGram: ingredients.sugarGram,
+      starterLiquidMl: ingredients.starterMl,
+      waterLiters: ingredients.waterLiters,
+      estimatedDays: targetDays,
+      notes,
+    });
+
+    try {
+      confetti({
+        particleCount: 80,
+        spread: 70,
+        origin: { y: 0.6 },
+      });
+    } catch {}
+
+    router.push(`/batches/${created.id}`);
   };
 
   return (
@@ -140,9 +162,9 @@ export default function NewBatchPage() {
 
         <button
           type="submit"
-          className="w-full py-3 rounded-xl bg-amber-500 hover:bg-amber-400 text-emerald-950 font-bold text-sm shadow-md transition flex items-center justify-center gap-2"
+          className="w-full py-3.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-emerald-950 font-black text-sm shadow-md transition flex items-center justify-center gap-2"
         >
-          <Check className="w-4 h-4" /> Uložiť a Začať Sledovanie
+          <Check className="w-4 h-4" /> Uložiť Várku & Spustiť Kvasenie
         </button>
       </form>
     </div>

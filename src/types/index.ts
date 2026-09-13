@@ -25,8 +25,10 @@ export interface Measurement {
   timestamp: string;
   temperature?: number; // °C
   ph?: number;
-  sweetnessRating?: number; // 1-5
-  acidityRating?: number; // 1-5
+  sugarBrix?: number; // °Brix (napr. 7.0 štart -> 3.2 hotová)
+  sugarGramPerLiter?: number; // g/L cukru
+  sweetnessRating?: number; // 1 (kyslá) - 5 (veľmi sladká)
+  acidityRating?: number; // 1 (jemná) - 5 (veľmi kyslá)
   fizzRating?: number; // 1-5
   notes?: string;
   measuredBy?: 'USER' | 'RASPBERRY_PI';

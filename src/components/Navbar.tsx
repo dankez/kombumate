@@ -2,18 +2,16 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { FlaskConical, BookOpen, Cpu, ShieldCheck, User, Sparkles, Home } from 'lucide-react';
-import { useState } from 'react';
+import { FlaskConical, BookOpen, Cpu, ShieldCheck, TrendingDown, Home, Sparkles } from 'lucide-react';
 
 export default function Navbar() {
   const pathname = usePathname();
-  const [isUserLoggedIn, setIsUserLoggedIn] = useState(true);
-  const [userName] = useState('Mária Fermenter');
 
   const navItems = [
     { href: '/', label: 'Prehľad', icon: Home },
     { href: '/batches', label: 'Várky', icon: FlaskConical },
     { href: '/recipes', label: 'Recepty & Kalkulačka', icon: BookOpen },
+    { href: '/analytics', label: 'Štatistiky & Grafy', icon: TrendingDown },
     { href: '/scoby', label: 'SCOBY Hotel', icon: ShieldCheck },
     { href: '/iot', label: 'Raspberry Pi IoT', icon: Cpu },
   ];
@@ -59,33 +57,22 @@ export default function Navbar() {
             })}
           </nav>
 
-          {/* Auth & Notifications Area */}
+          {/* User profile & Quick action */}
           <div className="flex items-center gap-3">
-            {isUserLoggedIn ? (
-              <div className="flex items-center gap-3">
-                <button
-                  title="Druhú fermentáciu pripraviť"
-                  className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-400 text-emerald-950 font-semibold text-xs transition-all shadow-sm"
-                  onClick={() => alert('Prihlasovanie cez Google OAuth je aktívne. Relácia používateľa bola automaticky obnovená.')}
-                >
-                  <Sparkles className="w-3.5 h-3.5" />
-                  Google Účet
-                </button>
-                <div className="flex items-center gap-2 bg-emerald-800/80 px-2.5 py-1.5 rounded-full border border-emerald-700">
-                  <div className="w-7 h-7 rounded-full bg-amber-400 text-emerald-950 flex items-center justify-center font-bold text-xs">
-                    MF
-                  </div>
-                  <span className="text-xs font-medium text-emerald-100 hidden lg:inline">{userName}</span>
-                </div>
+            <Link
+              href="/recipes"
+              className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-400 text-emerald-950 font-semibold text-xs transition-all shadow-sm"
+            >
+              <Sparkles className="w-3.5 h-3.5" />
+              Nová Várka
+            </Link>
+
+            <div className="flex items-center gap-2 bg-emerald-800/80 px-2.5 py-1.5 rounded-full border border-emerald-700">
+              <div className="w-7 h-7 rounded-full bg-amber-400 text-emerald-950 flex items-center justify-center font-bold text-xs">
+                KH
               </div>
-            ) : (
-              <button
-                onClick={() => setIsUserLoggedIn(true)}
-                className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-amber-500 text-emerald-950 text-xs font-bold hover:bg-amber-400 transition"
-              >
-                <User className="w-4 h-4" /> Prihlásiť cez Google
-              </button>
-            )}
+              <span className="text-xs font-medium text-emerald-100 hidden lg:inline">Domáci Sládok</span>
+            </div>
           </div>
         </div>
       </div>
@@ -99,7 +86,7 @@ export default function Navbar() {
             <Link
               key={item.href}
               href={item.href}
-              className={`flex flex-col items-center py-1 px-2.5 rounded-md text-[11px] font-medium transition ${
+              className={`flex flex-col items-center py-1 px-2 rounded-md text-[10px] font-medium transition whitespace-nowrap ${
                 isActive ? 'text-amber-400 bg-emerald-900' : 'text-emerald-300 hover:text-white'
               }`}
             >
