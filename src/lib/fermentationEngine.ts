@@ -103,9 +103,11 @@ export function transitionState(
   return updatedBatch;
 }
 
-export function calculateDaysFermenting(startDateISO: string, nowISO = new Date().toISOString()): number {
+export function calculateDaysFermenting(startDateISO?: string, nowISO = new Date().toISOString()): number {
+  if (!startDateISO) return 0;
   const start = new Date(startDateISO).getTime();
   const now = new Date(nowISO).getTime();
+  if (isNaN(start) || isNaN(now)) return 0;
   const diffDays = (now - start) / (1000 * 3600 * 24);
   return Math.max(0, Math.round(diffDays * 10) / 10);
 }

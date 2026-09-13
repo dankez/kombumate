@@ -47,9 +47,10 @@ export default function FermentationCharts({
 
   const currentBatch = batch || allBatches.find((b) => b.id === selectedBatchId) || allBatches[0];
 
-  const daysPassed = currentBatch ? calculateDaysFermenting(currentBatch.startDate) : 5;
-  const initialSugarGrams = currentBatch ? currentBatch.sugarGram : 245;
-  const volumeLiters = currentBatch ? currentBatch.volumeLiters : 3.5;
+  const rawDays = currentBatch ? calculateDaysFermenting(currentBatch.startDate) : 5;
+  const daysPassed = Math.max(0, Math.round(isNaN(rawDays) ? 5 : rawDays));
+  const initialSugarGrams = currentBatch?.sugarGram || 245;
+  const volumeLiters = currentBatch?.volumeLiters || 3.5;
   const initialSugarPerLiter = Math.round(initialSugarGrams / volumeLiters); // e.g. 70 g/L
   const initialBrix = Number((initialSugarPerLiter / 10).toFixed(1)); // ~7.0 Brix
 
@@ -100,8 +101,10 @@ export default function FermentationCharts({
   // Check measurements from the current batch
   const measurements = currentBatch?.measurements || [];
   const latestM = measurements[0];
-  const currentBrix = latestM?.sugarBrix ?? modelPoints[Math.min(daysPassed, 12)].sugarBrix;
-  const currentPh = latestM?.ph ?? modelPoints[Math.min(daysPassed, 12)].ph;
+  const dayIndex = Math.min(12, Math.max(0, daysPassed));
+  const modelDayPoint = modelPoints[dayIndex] ?? modelPoints[0];
+  const currentBrix = latestM?.sugarBrix ?? modelDayPoint.sugarBrix;
+  const currentPh = latestM?.ph ?? modelDayPoint.ph;
   const currentSugarPerLiter = latestM?.sugarGramPerLiter ?? Math.round(currentBrix * 10);
   const sugarConsumedPercent = Math.min(
     95,
